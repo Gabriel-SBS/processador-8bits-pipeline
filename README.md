@@ -1,6 +1,6 @@
 # Processador de 8 bits com pipeline de 3 estágios em Verilog
 
-Processador de 8 bits com dois registradores (A e B), pipeline de 3 estágios (busca, decodificação e execução) com *forwarding*, sintetizado com o Quartus Prime para uma FPGA Cyclone V (placa DE0-CV). Desenvolvido em novembro de 2025 no programa de Sistemas Digitais do CEPEDI.
+Fiz este processador em novembro de 2025, no programa de Sistemas Digitais do CEPEDI. Ele tem dois registradores (A e B) e um pipeline de 3 estágios (busca, decodificação e execução) com forwarding. Sintetizei no Quartus Prime e gravei numa placa DE0-CV, que usa uma FPGA Cyclone V.
 
 ## Arquitetura
 
@@ -15,11 +15,11 @@ Processador de 8 bits com dois registradores (A e B), pipeline de 3 estágios (b
            └──────────┘ d_rdata      └──────────┘
 ```
 
-- **Dados e endereços de 8 bits; instruções de 16 bits:** `[15:12]` opcode e `[7:0]` imediato ou endereço (bits `[11:8]` não usados).
-- **Pipeline:** busca (IF), decodificação (ID) e execução (EX), com registradores IF/ID e ID/EX.
-- **Forwarding:** o resultado que a instrução em EX vai gravar em A ou B é repassado direto para a instrução em ID, sem bolhas.
-- **Desvios:** resolvidos em EX. Quando o desvio é tomado, IF/ID e ID/EX são esvaziados (*flush*), com custo de 2 ciclos.
-- **Memórias:** ROM de programa (256 × 16, leitura assíncrona, carregada de `program.hex`) e RAM de dados (256 × 8, escrita síncrona e leitura assíncrona).
+Dados e endereços têm 8 bits. As instruções têm 16: os bits `[15:12]` são o opcode, `[7:0]` são o imediato ou o endereço, e `[11:8]` não são usados.
+
+O pipeline tem os estágios IF, ID e EX, separados pelos registradores IF/ID e ID/EX. Quando a instrução em EX vai gravar em A ou B, o valor novo é repassado direto para a instrução que está em ID, então dependências entre instruções seguidas não geram bolha. Os desvios são resolvidos em EX; se o desvio é tomado, IF/ID e ID/EX são esvaziados e se perdem 2 ciclos.
+
+A ROM de programa tem 256 palavras de 16 bits, leitura assíncrona e é carregada de `program.hex`. A RAM de dados tem 256 bytes, com escrita síncrona e leitura assíncrona.
 
 ## Conjunto de instruções
 
@@ -41,16 +41,13 @@ Processador de 8 bits com dois registradores (A e B), pipeline de 3 estágios (b
 | `1101` | STI | `RAM[B] ← A` (indireto) |
 | `1110` | SWP | troca A e B |
 
-ADD e SUB gravam o resultado na memória, no endereço dado pelo imediato, e não em A.
+Repare que ADD e SUB não gravam em A: o resultado vai para a memória, no endereço do imediato.
 
 ## Na FPGA
 
-O topo `main_fpga.v` liga o processador, a ROM e a RAM ao clock de 50 MHz da placa:
+O topo `main_fpga.v` liga o processador, a ROM e a RAM ao clock de 50 MHz da placa. O botão `KEY[0]` é o reset; ele passa por 2 flip-flops antes de chegar ao processador, para evitar metaestabilidade. Os LEDs `LEDR[7:0]` mostram o registrador A, e o `LEDR[9]` acende quando o reset está solto.
 
-- `KEY[0]` é o reset, sincronizado com 2 flip-flops para evitar metaestabilidade.
-- `LEDR[7:0]` mostra o registrador A, e `LEDR[9]` mostra o estado do reset.
-
-O `program.hex` incluído faz escritas indiretas (`STI`), troca de registradores e uma soma, e termina num laço no endereço `0x0C`.
+O `program.hex` que está no repositório faz escritas indiretas com `STI`, troca os registradores, soma e termina num laço no endereço `0x0C`.
 
 ### Resultado da síntese (Quartus Prime 20.1.1 Lite, 5CEBA4F23C7)
 
@@ -62,7 +59,7 @@ O `program.hex` incluído faz escritas indiretas (`STI`), troca de registradores
 | Fmax (modelo lento, 85 °C) | 79,23 MHz |
 | Folga de setup a 50 MHz | 7,378 ns |
 
-As memórias foram implementadas em registradores (0 blocos de RAM) porque a leitura é assíncrona. Os resumos completos estão em [`docs/`](docs/).
+Nenhum bloco de RAM da FPGA foi usado: como as duas memórias têm leitura assíncrona, o Quartus as montou com registradores, e é daí que vêm os 2.118. Os resumos completos estão em [`docs/`](docs/).
 
 ## Testbenches
 
@@ -75,9 +72,9 @@ As memórias foram implementadas em registradores (0 blocos de RAM) porque a lei
 
 ## Como rodar
 
-**Quartus:** abra `proc8bits.qpf`, compile e grave na placa. A pinagem já está no `proc8bits.qsf`.
+No Quartus, abra `proc8bits.qpf`, compile e grave na placa. A pinagem da DE0-CV já está no `proc8bits.qsf`.
 
-**Simulação com Icarus Verilog:**
+Para simular com o Icarus Verilog:
 
 ```bash
 iverilog -o sim_cpu testbenchs/tb_cpu_core.v cpu_core.v && vvp sim_cpu
