@@ -1,0 +1,21 @@
+# Quartus
+db/
+incremental_db/
+output_files/
+*.qws
+*.bak
+*.out
+greybox_tmp/
+.qsys_edit/
+# ModelSim
+simulation/
+work/
+rtl_work/
+transcript
+*.wlf
+*.mpf
+*.cr.mti
+# Icarus
+sim_*
+*.vvp
+*.vcd
